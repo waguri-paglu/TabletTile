@@ -71,10 +71,20 @@ jobs:
                       android:exported="true"
                       android:theme="@android:style/Theme.DeviceDefault.Light">
                       <intent-filter>
+                          <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+                      </intent-filter>
+                  </activity>
+                  <activity-alias
+                      android:name=".Launcher"
+                      android:targetActivity=".MainActivity"
+                      android:exported="true"
+                      android:label="Tablet UI"
+                      android:icon="@drawable/ic_tile">
+                      <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
                           <category android:name="android.intent.category.LAUNCHER" />
                       </intent-filter>
-                  </activity>
+                  </activity-alias>
                   <service
                       android:name=".TabletTileService"
                       android:exported="true"
@@ -152,12 +162,29 @@ jobs:
           package com.waguri.tablettile;
 
           import android.app.Activity;
+          import android.content.ComponentName;
+          import android.content.pm.PackageManager;
           import android.os.Bundle;
           import android.widget.Button;
           import android.widget.LinearLayout;
           import android.widget.TextView;
 
           public class MainActivity extends Activity {
+              private Button hideBtn;
+
+              private ComponentName alias() {
+                  return new ComponentName(this, "com.waguri.tablettile.Launcher");
+              }
+
+              private boolean iconShown() {
+                  return getPackageManager().getComponentEnabledSetting(alias())
+                          != PackageManager.COMPONENT_ENABLED_STATE_DISABLED;
+              }
+
+              private void refreshButton() {
+                  hideBtn.setText(iconShown() ? "Hide launcher icon" : "Show launcher icon");
+              }
+
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
@@ -167,8 +194,9 @@ jobs:
 
                   final TextView info = new TextView(this);
                   info.setTextSize(16);
-                  info.setText("1. Tap the button to grant root in KernelSU.\n"
-                          + "2. Pull down Quick Settings, tap the pencil, drag the 'Tablet UI' tile in.");
+                  info.setText("1. Tap Grant root and allow it in KernelSU.\n"
+                          + "2. Add the 'Tablet UI' tile in Quick Settings.\n"
+                          + "3. Hide the icon if you like. Long-press the tile to open this screen again.");
                   root.addView(info);
 
                   Button b = new Button(this);
@@ -185,6 +213,18 @@ jobs:
                       runOnUiThread(() -> info.setText(r));
                   }).start());
                   root.addView(b);
+
+                  hideBtn = new Button(this);
+                  hideBtn.setOnClickListener(v -> {
+                      int state = iconShown()
+                              ? PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+                              : PackageManager.COMPONENT_ENABLED_STATE_ENABLED;
+                      getPackageManager().setComponentEnabledSetting(
+                              alias(), state, PackageManager.DONT_KILL_APP);
+                      refreshButton();
+                  });
+                  root.addView(hideBtn);
+                  refreshButton();
 
                   setContentView(root);
               }
